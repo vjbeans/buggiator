@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver';
 
 import { useEffect, useState } from 'react';
 
-import { Bug, Check, Copy, FileText, Sparkles } from 'lucide-react';
+import { Bug, Check, Copy, FileText, Sparkles, Trash2 } from 'lucide-react';
 
 type BugReport = {
   id: string;
@@ -71,10 +71,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem(
-        'buggiator_history',
-        JSON.stringify(history),
-      );
+      localStorage.setItem('buggiator_history', JSON.stringify(history));
     }
   }, [history, isMounted]);
 
@@ -158,10 +155,7 @@ export default function Home() {
       // ============================================
 
       if (!response.ok) {
-        setError(
-          data.error ||
-            'Something went wrong generating the report.',
-        );
+        setError(data.error || 'Something went wrong generating the report.');
 
         setReport('');
 
@@ -172,8 +166,7 @@ export default function Home() {
       // GENERATED REPORT
       // ============================================
 
-      const generatedReport =
-        data.report || 'No report generated.';
+      const generatedReport = data.report || 'No report generated.';
 
       setReport(generatedReport);
 
@@ -194,11 +187,9 @@ export default function Home() {
 
         environment: environment,
 
-        issueTitle:
-          parsed['Issue Title'] || 'Untitled Defect',
+        issueTitle: parsed['Issue Title'] || 'Untitled Defect',
 
-        severity:
-          parsed['Severity'] || 'Unknown',
+        severity: parsed['Severity'] || 'Unknown',
 
         report: generatedReport,
 
@@ -209,10 +200,7 @@ export default function Home() {
       // ADD TO HISTORY
       // ============================================
 
-      setHistory((previousHistory) => [
-        newReport,
-        ...previousHistory,
-      ]);
+      setHistory((previousHistory) => [newReport, ...previousHistory]);
     } catch (error) {
       console.error(error);
 
@@ -267,6 +255,27 @@ export default function Home() {
     setError('');
     setCopied(false);
   };
+  const deleteHistoryReport = (id: string) => {
+    const reportToDelete = history.find(
+      (historyReport) => historyReport.id === id,
+    );
+
+    if (!reportToDelete) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${reportToDelete.issueTitle}" from report history?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setHistory((previousHistory) =>
+      previousHistory.filter((historyReport) => historyReport.id !== id),
+    );
+  };
 
   // ============================================
   // PARSE REPORT
@@ -295,19 +304,14 @@ export default function Home() {
 
       const nextSection = sections
         .slice(index + 1)
-        .find(
-          (s) => report.indexOf(s + ':') > start,
-        );
+        .find((s) => report.indexOf(s + ':') > start);
 
       const end = nextSection
         ? report.indexOf(nextSection + ':')
         : report.length;
 
       result[section] = report
-        .substring(
-          start + section.length + 1,
-          end,
-        )
+        .substring(start + section.length + 1, end)
         .trim();
     });
 
@@ -318,64 +322,44 @@ export default function Home() {
   // PARSED REPORT
   // ============================================
 
-  const parsedReport = report
-    ? parseReport(report)
-    : null;
+  const parsedReport = report ? parseReport(report) : null;
 
   // ============================================
   // FILTER REPORT HISTORY
   // ============================================
 
-  const filteredHistory = history.filter(
-    (historyReport) => {
-      const searchTerm =
-        historySearch.toLowerCase().trim();
+  const filteredHistory = history.filter((historyReport) => {
+    const searchTerm = historySearch.toLowerCase().trim();
 
-      // Search
-      const matchesSearch =
-        !searchTerm ||
-        historyReport.issueTitle
-          .toLowerCase()
-          .includes(searchTerm) ||
-        historyReport.system
-          .toLowerCase()
-          .includes(searchTerm) ||
-        historyReport.environment
-          .toLowerCase()
-          .includes(searchTerm) ||
-        historyReport.severity
-          .toLowerCase()
-          .includes(searchTerm) ||
-        historyReport.report
-          .toLowerCase()
-          .includes(searchTerm);
+    // Search
+    const matchesSearch =
+      !searchTerm ||
+      historyReport.issueTitle.toLowerCase().includes(searchTerm) ||
+      historyReport.system.toLowerCase().includes(searchTerm) ||
+      historyReport.environment.toLowerCase().includes(searchTerm) ||
+      historyReport.severity.toLowerCase().includes(searchTerm) ||
+      historyReport.report.toLowerCase().includes(searchTerm);
 
-      // System filter
-      const matchesSystem =
-        systemFilter === 'All' ||
-        historyReport.system.toLowerCase() ===
-          systemFilter.toLowerCase();
+    // System filter
+    const matchesSystem =
+      systemFilter === 'All' ||
+      historyReport.system.toLowerCase() === systemFilter.toLowerCase();
 
-      // Environment filter
-      const matchesEnvironment =
-        environmentFilter === 'All' ||
-        historyReport.environment.toLowerCase() ===
-          environmentFilter.toLowerCase();
+    // Environment filter
+    const matchesEnvironment =
+      environmentFilter === 'All' ||
+      historyReport.environment.toLowerCase() ===
+        environmentFilter.toLowerCase();
 
-      // Severity filter
-      const matchesSeverity =
-        severityFilter === 'All' ||
-        historyReport.severity.toLowerCase() ===
-          severityFilter.toLowerCase();
+    // Severity filter
+    const matchesSeverity =
+      severityFilter === 'All' ||
+      historyReport.severity.toLowerCase() === severityFilter.toLowerCase();
 
-      return (
-        matchesSearch &&
-        matchesSystem &&
-        matchesEnvironment &&
-        matchesSeverity
-      );
-    },
-  );
+    return (
+      matchesSearch && matchesSystem && matchesEnvironment && matchesSeverity
+    );
+  });
 
   // ============================================
   // CLEAR HISTORY FILTERS
@@ -398,9 +382,7 @@ export default function Home() {
     const doc = new Document({
       sections: [
         {
-          children: Object.entries(
-            parsedReport,
-          ).flatMap(([title, content]) => [
+          children: Object.entries(parsedReport).flatMap(([title, content]) => [
             new Paragraph({
               children: [
                 new TextRun({
@@ -425,10 +407,7 @@ export default function Home() {
 
     const blob = await Packer.toBlob(doc);
 
-    saveAs(
-      blob,
-      `Buggiator_Report_${Date.now()}.docx`,
-    );
+    saveAs(blob, `Buggiator_Report_${Date.now()}.docx`);
   };
 
   // ============================================
@@ -550,9 +529,7 @@ export default function Home() {
 
             <select
               value={system}
-              onChange={(e) =>
-                setSystem(e.target.value)
-              }
+              onChange={(e) => setSystem(e.target.value)}
               className="
                 w-full
                 mt-2
@@ -586,9 +563,7 @@ export default function Home() {
 
             <select
               value={environment}
-              onChange={(e) =>
-                setEnvironment(e.target.value)
-              }
+              onChange={(e) => setEnvironment(e.target.value)}
               className="
                 w-full
                 mt-2
@@ -634,18 +609,14 @@ export default function Home() {
                 Example: Unable to generate QR code for attachment inventory.
               "
               value={issue}
-              onChange={(e) =>
-                setIssue(e.target.value)
-              }
+              onChange={(e) => setIssue(e.target.value)}
             />
 
             {/* GENERATE BUTTON */}
 
             <button
               onClick={generateReport}
-              disabled={
-                loading || !issue.trim()
-              }
+              disabled={loading || !issue.trim()}
               className="
                 mt-5
                 w-full
@@ -663,21 +634,14 @@ export default function Home() {
             >
               <Sparkles size={18} />
 
-              {loading
-                ? 'Generating...'
-                : 'Generate Bug Report'}
+              {loading ? 'Generating...' : 'Generate Bug Report'}
             </button>
 
             {/* CLEAR BUTTON */}
 
             <button
               onClick={clearForm}
-              disabled={
-                loading ||
-                (!issue.trim() &&
-                  !report &&
-                  !error)
-              }
+              disabled={loading || (!issue.trim() && !report && !error)}
               className="
                 mt-3
                 w-full
@@ -748,15 +712,9 @@ export default function Home() {
                     gap-1.5
                   "
                 >
-                  {copied ? (
-                    <Check size={15} />
-                  ) : (
-                    <Copy size={15} />
-                  )}
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
 
-                  {copied
-                    ? 'Copied!'
-                    : 'Copy Report'}
+                  {copied ? 'Copied!' : 'Copy Report'}
                 </button>
 
                 {/* EXPORT */}
@@ -894,44 +852,40 @@ export default function Home() {
                     space-y-4
                   "
                 >
-                  {Object.entries(
-                    parsedReport,
-                  ).map(
-                    ([title, content]) => (
-                      <div
-                        key={title}
-                        className="
+                  {Object.entries(parsedReport).map(([title, content]) => (
+                    <div
+                      key={title}
+                      className="
                           bg-white
                           border
                           rounded-xl
                           overflow-hidden
                         "
-                      >
-                        {/* SECTION TITLE */}
+                    >
+                      {/* SECTION TITLE */}
 
-                        <div
-                          className="
+                      <div
+                        className="
                             bg-slate-100
                             px-4
                             py-2
                             font-semibold
                           "
-                        >
-                          {title}
-                        </div>
+                      >
+                        {title}
+                      </div>
 
-                        {/* SECTION CONTENT */}
+                      {/* SECTION CONTENT */}
 
-                        <div
-                          className="
+                      <div
+                        className="
                             p-4
                             whitespace-pre-wrap
                           "
-                        >
-                          {title ===
-                          'Severity' ? (
-                            <span
-                              className={`
+                      >
+                        {title === 'Severity' ? (
+                          <span
+                            className={`
                                 inline-flex
                                 px-3
                                 py-1
@@ -940,37 +894,24 @@ export default function Home() {
                                 font-semibold
 
                                 ${
-                                  content
-                                    .toLowerCase()
-                                    .includes(
-                                      'critical',
-                                    )
+                                  content.toLowerCase().includes('critical')
                                     ? 'bg-red-100 text-red-700'
-                                    : content
-                                          .toLowerCase()
-                                          .includes(
-                                            'high',
-                                          )
+                                    : content.toLowerCase().includes('high')
                                       ? 'bg-orange-100 text-orange-700'
-                                      : content
-                                            .toLowerCase()
-                                            .includes(
-                                              'medium',
-                                            )
+                                      : content.toLowerCase().includes('medium')
                                         ? 'bg-yellow-100 text-yellow-700'
                                         : 'bg-green-100 text-green-700'
                                 }
                               `}
-                            >
-                              {content}
-                            </span>
-                          ) : (
-                            content
-                          )}
-                        </div>
+                          >
+                            {content}
+                          </span>
+                        ) : (
+                          content
+                        )}
                       </div>
-                    ),
-                  )}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 'Your AI-generated defect report will appear here.'
@@ -1033,9 +974,7 @@ export default function Home() {
             >
               {isMounted
                 ? `${history.length} ${
-                    history.length === 1
-                      ? 'report'
-                      : 'reports'
+                    history.length === 1 ? 'report' : 'reports'
                   }`
                 : '0 reports'}
             </div>
@@ -1049,9 +988,7 @@ export default function Home() {
             <input
               type="text"
               value={historySearch}
-              onChange={(e) =>
-                setHistorySearch(e.target.value)
-              }
+              onChange={(e) => setHistorySearch(e.target.value)}
               placeholder="Search reports..."
               className="
                 w-full
@@ -1099,11 +1036,7 @@ export default function Home() {
 
               <select
                 value={systemFilter}
-                onChange={(e) =>
-                  setSystemFilter(
-                    e.target.value,
-                  )
-                }
+                onChange={(e) => setSystemFilter(e.target.value)}
                 className="
                   w-full
                   border
@@ -1119,29 +1052,17 @@ export default function Home() {
                   focus:border-blue-500
                 "
               >
-                <option value="All">
-                  All Systems
-                </option>
+                <option value="All">All Systems</option>
 
-                <option value="PPGIS">
-                  PPGIS
-                </option>
+                <option value="PPGIS">PPGIS</option>
 
-                <option value="PST Mobile">
-                  PST Mobile
-                </option>
+                <option value="PST Mobile">PST Mobile</option>
 
-                <option value="PST WEB">
-                  PST WEB
-                </option>
+                <option value="PST WEB">PST WEB</option>
 
-                <option value="NETD WEB">
-                  NETD WEB
-                </option>
+                <option value="NETD WEB">NETD WEB</option>
 
-                <option value="NETD CAD">
-                  NETD CAD
-                </option>
+                <option value="NETD CAD">NETD CAD</option>
               </select>
             </div>
 
@@ -1162,11 +1083,7 @@ export default function Home() {
 
               <select
                 value={environmentFilter}
-                onChange={(e) =>
-                  setEnvironmentFilter(
-                    e.target.value,
-                  )
-                }
+                onChange={(e) => setEnvironmentFilter(e.target.value)}
                 className="
                   w-full
                   border
@@ -1182,25 +1099,15 @@ export default function Home() {
                   focus:border-blue-500
                 "
               >
-                <option value="All">
-                  All Environments
-                </option>
+                <option value="All">All Environments</option>
 
-                <option value="DCUT">
-                  DCUT
-                </option>
+                <option value="DCUT">DCUT</option>
 
-                <option value="PREBAU">
-                  PREBAU
-                </option>
+                <option value="PREBAU">PREBAU</option>
 
-                <option value="UAT">
-                  UAT
-                </option>
+                <option value="UAT">UAT</option>
 
-                <option value="Production">
-                  Production
-                </option>
+                <option value="Production">Production</option>
               </select>
             </div>
 
@@ -1221,11 +1128,7 @@ export default function Home() {
 
               <select
                 value={severityFilter}
-                onChange={(e) =>
-                  setSeverityFilter(
-                    e.target.value,
-                  )
-                }
+                onChange={(e) => setSeverityFilter(e.target.value)}
                 className="
                   w-full
                   border
@@ -1241,25 +1144,15 @@ export default function Home() {
                   focus:border-blue-500
                 "
               >
-                <option value="All">
-                  All Severities
-                </option>
+                <option value="All">All Severities</option>
 
-                <option value="Critical">
-                  Critical
-                </option>
+                <option value="Critical">Critical</option>
 
-                <option value="High">
-                  High
-                </option>
+                <option value="High">High</option>
 
-                <option value="Medium">
-                  Medium
-                </option>
+                <option value="Medium">Medium</option>
 
-                <option value="Low">
-                  Low
-                </option>
+                <option value="Low">Low</option>
               </select>
             </div>
           </div>
@@ -1280,8 +1173,7 @@ export default function Home() {
               disabled={
                 !historySearch &&
                 systemFilter === 'All' &&
-                environmentFilter ===
-                  'All' &&
+                environmentFilter === 'All' &&
                 severityFilter === 'All'
               }
               className="
@@ -1325,15 +1217,13 @@ export default function Home() {
               "
             >
               No reports in history yet.
-
               <p
                 className="
                   text-sm
                   mt-1
                 "
               >
-                Generate a defect report to
-                see it here.
+                Generate a defect report to see it here.
               </p>
             </div>
           ) : filteredHistory.length === 0 ? (
@@ -1344,15 +1234,10 @@ export default function Home() {
                 text-slate-500
               "
             >
-              <p>
-                No reports found matching
-                your filters.
-              </p>
+              <p>No reports found matching your filters.</p>
 
               <button
-                onClick={
-                  clearHistoryFilters
-                }
+                onClick={clearHistoryFilters}
                 className="
                   mt-3
                   text-sm
@@ -1374,20 +1259,19 @@ export default function Home() {
                 space-y-3
               "
             >
-              {filteredHistory.map(
-                (historyReport) => (
-                  <div
-                    key={historyReport.id}
-                    className="
+              {filteredHistory.map((historyReport) => (
+                <div
+                  key={historyReport.id}
+                  className="
                       border
                       rounded-xl
                       p-4
                       hover:bg-slate-50
                       transition
                     "
-                  >
-                    <div
-                      className="
+                >
+                  <div
+                    className="
                         flex
                         flex-col
                         md:flex-row
@@ -1395,28 +1279,26 @@ export default function Home() {
                         md:justify-between
                         gap-4
                       "
-                    >
-                      {/* REPORT INFORMATION */}
+                  >
+                    {/* REPORT INFORMATION */}
 
-                      <div
-                        className="
+                    <div
+                      className="
                           min-w-0
                         "
-                      >
-                        <h3
-                          className="
+                    >
+                      <h3
+                        className="
                             font-semibold
                             text-slate-900
                             truncate
                           "
-                        >
-                          {
-                            historyReport.issueTitle
-                          }
-                        </h3>
+                      >
+                        {historyReport.issueTitle}
+                      </h3>
 
-                        <div
-                          className="
+                      <div
+                        className="
                             flex
                             flex-wrap
                             items-center
@@ -1425,42 +1307,32 @@ export default function Home() {
                             text-sm
                             text-slate-500
                           "
-                        >
-                          <span>
-                            {
-                              historyReport.system
-                            }
-                          </span>
+                      >
+                        <span>{historyReport.system}</span>
 
-                          <span>•</span>
+                        <span>•</span>
 
-                          <span>
-                            {
-                              historyReport.environment
-                            }
-                          </span>
+                        <span>{historyReport.environment}</span>
 
-                          <span>•</span>
+                        <span>•</span>
 
-                          <span>
-                            {new Date(
-                              historyReport.createdAt,
-                            ).toLocaleString()}
-                          </span>
-                        </div>
+                        <span>
+                          {new Date(historyReport.createdAt).toLocaleString()}
+                        </span>
                       </div>
+                    </div>
 
-                      {/* SEVERITY + OPEN */}
+                    {/* SEVERITY + OPEN */}
 
-                      <div
-                        className="
+                    <div
+                      className="
                           flex
                           items-center
                           gap-3
                         "
-                      >
-                        <span
-                          className={`
+                    >
+                      <span
+                        className={`
                             inline-flex
                             px-3
                             py-1
@@ -1471,40 +1343,28 @@ export default function Home() {
                             ${
                               historyReport.severity
                                 .toLowerCase()
-                                .includes(
-                                  'critical',
-                                )
+                                .includes('critical')
                                 ? 'bg-red-100 text-red-700'
                                 : historyReport.severity
                                       .toLowerCase()
-                                      .includes(
-                                        'high',
-                                      )
+                                      .includes('high')
                                   ? 'bg-orange-100 text-orange-700'
                                   : historyReport.severity
                                         .toLowerCase()
-                                        .includes(
-                                          'medium',
-                                        )
+                                        .includes('medium')
                                     ? 'bg-yellow-100 text-yellow-700'
                                     : 'bg-green-100 text-green-700'
                             }
                           `}
-                        >
-                          {
-                            historyReport.severity
-                          }
-                        </span>
+                      >
+                        {historyReport.severity}
+                      </span>
 
-                        {/* OPEN */}
+                      {/* OPEN */}
 
-                        <button
-                          onClick={() =>
-                            openHistoryReport(
-                              historyReport,
-                            )
-                          }
-                          className="
+                      <button
+                        onClick={() => openHistoryReport(historyReport)}
+                        className="
                             px-3
                             py-1.5
                             text-sm
@@ -1515,14 +1375,20 @@ export default function Home() {
                             rounded-lg
                             hover:bg-blue-50
                           "
-                        >
-                          Open
-                        </button>
-                      </div>
+                      >
+                        Open
+                      </button>
+                      <button
+                        onClick={() => deleteHistoryReport(historyReport.id)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
                     </div>
                   </div>
-                ),
-              )}
+                </div>
+              ))}
             </div>
           )}
         </section>
