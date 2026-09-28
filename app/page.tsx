@@ -1,282 +1,334 @@
-  'use client';
+'use client';
 
-  import { Document, Packer, Paragraph, TextRun } from 'docx';
-  import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { saveAs } from 'file-saver';
 
-  import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-  import { Bug, Check, Copy, FileText, Sparkles, Trash2 } from 'lucide-react';
+import { Bug, Check, Copy, FileText, Sparkles, Trash2 } from 'lucide-react';
 
-  type BugReport = {
-    id: string;
-    system: string;
-    environment: string;
-    issueTitle: string;
-    severity: string;
-    report: string;
-    createdAt: string;
+type BugReport = {
+  id: string;
+  system: string;
+  environment: string;
+  issueTitle: string;
+  severity: string;
+  report: string;
+  createdAt: string;
+};
+
+export default function Home() {
+  // ============================================
+  // STATE
+  // ============================================
+
+  const [system, setSystem] = useState('PPGIS');
+  const [environment, setEnvironment] = useState('DCUT');
+  const [issue, setIssue] = useState('');
+  const [report, setReport] = useState('');
+
+  // Report History
+  const [history, setHistory] = useState<BugReport[]>([]);
+  const [historySearch, setHistorySearch] = useState('');
+
+  // History Filters
+  const [systemFilter, setSystemFilter] = useState('All');
+  const [environmentFilter, setEnvironmentFilter] = useState('All');
+  const [severityFilter, setSeverityFilter] = useState('All');
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  // Track whether the component has mounted
+  const [isMounted, setIsMounted] = useState(false);
+
+  // ============================================
+  // LOAD HISTORY FROM LOCALSTORAGE AFTER MOUNT
+  // ============================================
+
+  useEffect(() => {
+    const loadHistory = () => {
+      setIsMounted(true);
+
+      try {
+        const saved = localStorage.getItem('buggiator_history');
+
+        if (saved) {
+          setHistory(JSON.parse(saved));
+        }
+      } catch {
+        // Ignore invalid localStorage data
+      }
+    };
+
+    loadHistory();
+  }, []);
+
+  // ============================================
+  // SAVE REPORT HISTORY TO LOCALSTORAGE
+  // ============================================
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('buggiator_history', JSON.stringify(history));
+    }
+  }, [history, isMounted]);
+
+  // ============================================
+  // VALIDATE ISSUE DESCRIPTION
+  // ============================================
+
+  const validateIssueDescription = (value: string) => {
+    const cleaned = value.trim().toLowerCase();
+
+    // Remove special characters for validation purposes only.
+    // The original user input remains unchanged.
+    const normalized = cleaned
+      .replace(/[^a-z0-9\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Empty input
+    if (!normalized) {
+      return 'Please describe the issue before generating a report.';
+    }
+
+    // Obvious test / placeholder inputs
+    const invalidInputs = [
+      'hi',
+      'hello',
+      'hey',
+      'test',
+      'testing',
+      'asdf',
+      'abc',
+      '123',
+      '1234',
+      'sample',
+      'sample test',
+    ];
+
+    if (invalidInputs.includes(normalized)) {
+      return 'Please provide a meaningful issue description.';
+    }
+
+    // Input contains no letters
+    if (!/[a-zA-Z]/.test(normalized)) {
+      return 'Please provide a meaningful issue description.';
+    }
+
+    // Very short descriptions
+    if (normalized.length < 5) {
+      return 'Please provide more details about the issue.';
+    }
+
+    // Common non-issue / casual sentences
+    const nonIssuePatterns = [
+      'i like ',
+      'i love ',
+      'i hate ',
+      'i watched ',
+      'i went ',
+      'i ate ',
+      'my favorite ',
+      'the weather ',
+      'today is ',
+      'yesterday was ',
+    ];
+
+    const looksLikeNonIssue = nonIssuePatterns.some((pattern) =>
+      normalized.startsWith(pattern),
+    );
+
+    if (looksLikeNonIssue) {
+      return 'This does not appear to describe a software issue. Please describe the problem you encountered.';
+    }
+
+    // Very vague issue descriptions
+    const vagueInputs = [
+      'something is wrong',
+      'something went wrong',
+      'it is broken',
+      'its broken',
+      'this is broken',
+      'does not work',
+      'doesnt work',
+      'does not work properly',
+      'not working',
+      'it looks weird',
+      'looks weird',
+      'there is a problem',
+      'there is an issue',
+    ];
+
+    if (vagueInputs.includes(normalized)) {
+      return 'Please provide more details about the issue, such as what you were doing and what went wrong.';
+    }
+
+    return '';
   };
 
-  export default function Home() {
-    // ============================================
-    // STATE
-    // ============================================
+  // ============================================
+  // GENERATE REPORT
+  // ============================================
 
-    const [system, setSystem] = useState('PPGIS');
-    const [environment, setEnvironment] = useState('DCUT');
-    const [issue, setIssue] = useState('');
-    const [report, setReport] = useState('');
+  const generateReport = async () => {
+    const validationError = validateIssueDescription(issue);
 
-    // Report History
-    const [history, setHistory] = useState<BugReport[]>([]);
-    const [historySearch, setHistorySearch] = useState('');
+    if (validationError) {
+      setError(validationError);
+      setReport('');
+      return;
+    }
 
-    // History Filters
-    const [systemFilter, setSystemFilter] = useState('All');
-    const [environmentFilter, setEnvironmentFilter] = useState('All');
-    const [severityFilter, setSeverityFilter] = useState('All');
+    try {
+      setLoading(true);
+      setError('');
 
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [copied, setCopied] = useState(false);
+      const response = await fetch('/api/generate', {
+        method: 'POST',
 
-    // Track whether the component has mounted
-    const [isMounted, setIsMounted] = useState(false);
+        headers: {
+          'Content-Type': 'application/json',
+        },
 
-    // ============================================
-    // LOAD HISTORY FROM LOCALSTORAGE AFTER MOUNT
-    // ============================================
+        body: JSON.stringify({
+          system,
+          environment,
+          issueDescription: issue,
+        }),
+      });
 
-    useEffect(() => {
-      const loadHistory = () => {
-        setIsMounted(true);
+      const data = await response.json();
 
-        try {
-          const saved = localStorage.getItem('buggiator_history');
+      // ============================================
+      // API ERROR
+      // ============================================
 
-          if (saved) {
-            setHistory(JSON.parse(saved));
-          }
-        } catch {
-          // Ignore invalid localStorage data
-        }
+      if (!response.ok) {
+        setError(data.error || 'Something went wrong generating the report.');
+
+        setReport('');
+
+        return;
+      }
+
+      // ============================================
+      // GENERATED REPORT
+      // ============================================
+
+      const generatedReport = data.report || 'No report generated.';
+
+      setReport(generatedReport);
+
+      // ============================================
+      // PARSE REPORT
+      // ============================================
+
+      const parsed = parseReport(generatedReport);
+
+      // ============================================
+      // CREATE HISTORY RECORD
+      // ============================================
+
+      const newReport: BugReport = {
+        id: crypto.randomUUID(),
+
+        system: system,
+
+        environment: environment,
+
+        issueTitle: parsed['Issue Title'] || 'Untitled Defect',
+
+        severity: parsed['Severity'] || 'Unknown',
+
+        report: generatedReport,
+
+        createdAt: new Date().toISOString(),
       };
 
-      loadHistory();
-    }, []);
+      // ============================================
+      // ADD TO HISTORY
+      // ============================================
 
-    // ============================================
-    // SAVE REPORT HISTORY TO LOCALSTORAGE
-    // ============================================
+      setHistory((previousHistory) => [newReport, ...previousHistory]);
+    } catch (error) {
+      console.error(error);
 
-    useEffect(() => {
-      if (isMounted) {
-        localStorage.setItem('buggiator_history', JSON.stringify(history));
-      }
-    }, [history, isMounted]);
+      setError(
+        'Could not reach the server. Check your connection and try again.',
+      );
 
-    // ============================================
-    // VALIDATE ISSUE DESCRIPTION
-    // ============================================
-
-    const validateIssueDescription = (value: string) => {
-      const cleaned = value.trim().toLowerCase();
-
-      if (!cleaned) {
-        return 'Please describe the issue before generating a report.';
-      }
-
-      const invalidInputs = [
-        'hi',
-        'hello',
-        'hey',
-        'test',
-        'testing',
-        'asdf',
-        'abc',
-        '123',
-        '1234',
-        'sample',
-        'sample test',
-      ];
-
-      if (invalidInputs.includes(cleaned)) {
-        return 'Please provide a meaningful issue description.';
-      }
-
-      // Reject input that contains no letters
-      if (!/[a-zA-Z]/.test(cleaned)) {
-        return 'Please provide a meaningful issue description.';
-      }
-
-      // Reject very short non-descriptive input
-      if (cleaned.length < 5) {
-        return 'Please provide more details about the issue.';
-      }
-
-      return '';
-    };
-
-    // ============================================
-    // GENERATE REPORT
-    // ============================================
-
-    const generateReport = async () => {
-      const validationError = validateIssueDescription(issue);
-
-      if (validationError) {
-        setError(validationError);
-        setReport('');
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError('');
-
-        const response = await fetch('/api/generate', {
-          method: 'POST',
-
-          headers: {
-            'Content-Type': 'application/json',
-          },
-
-          body: JSON.stringify({
-            system,
-            environment,
-            issueDescription: issue,
-          }),
-        });
-
-        const data = await response.json();
-
-        // ============================================
-        // API ERROR
-        // ============================================
-
-        if (!response.ok) {
-          setError(data.error || 'Something went wrong generating the report.');
-
-          setReport('');
-
-          return;
-        }
-
-        // ============================================
-        // GENERATED REPORT
-        // ============================================
-
-        const generatedReport = data.report || 'No report generated.';
-
-        setReport(generatedReport);
-
-        // ============================================
-        // PARSE REPORT
-        // ============================================
-
-        const parsed = parseReport(generatedReport);
-
-        // ============================================
-        // CREATE HISTORY RECORD
-        // ============================================
-
-        const newReport: BugReport = {
-          id: crypto.randomUUID(),
-
-          system: system,
-
-          environment: environment,
-
-          issueTitle: parsed['Issue Title'] || 'Untitled Defect',
-
-          severity: parsed['Severity'] || 'Unknown',
-
-          report: generatedReport,
-
-          createdAt: new Date().toISOString(),
-        };
-
-        // ============================================
-        // ADD TO HISTORY
-        // ============================================
-
-        setHistory((previousHistory) => [newReport, ...previousHistory]);
-      } catch (error) {
-        console.error(error);
-
-        setError(
-          'Could not reach the server. Check your connection and try again.',
-        );
-
-        setReport('');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // ============================================
-    // COPY REPORT
-    // ============================================
-
-    const copyReport = async () => {
-      try {
-        await navigator.clipboard.writeText(report);
-
-        setCopied(true);
-
-        setTimeout(() => setCopied(false), 2000);
-      } catch (error) {
-        console.error(error);
-
-        setError("Couldn't copy to clipboard.");
-      }
-    };
-
-    // ============================================
-    // CLEAR FORM
-    // ============================================
-
-    const clearForm = () => {
-      setIssue('');
       setReport('');
-      setError('');
-      setCopied(false);
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // ============================================
-    // OPEN REPORT FROM HISTORY
-    // ============================================
+  // ============================================
+  // COPY REPORT
+  // ============================================
 
-    const openHistoryReport = (historyReport: BugReport) => {
-      setSystem(historyReport.system);
-      setEnvironment(historyReport.environment);
-      setReport(historyReport.report);
-      setIssue(historyReport.issueTitle);
-      setError('');
-      setCopied(false);
-    };
-    const deleteHistoryReport = (id: string) => {
-      const reportToDelete = history.find(
-        (historyReport) => historyReport.id === id,
-      );
+  const copyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(report);
 
-      if (!reportToDelete) {
-        return;
-      }
+      setCopied(true);
 
-      const confirmed = window.confirm(
-        `Delete "${reportToDelete.issueTitle}" from report history?`,
-      );
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error(error);
 
-      if (!confirmed) {
-        return;
-      }
+      setError("Couldn't copy to clipboard.");
+    }
+  };
 
-      setHistory((previousHistory) =>
-        previousHistory.filter((historyReport) => historyReport.id !== id),
-      );
-    };
-            const clearAllReports = () => {
+  // ============================================
+  // CLEAR FORM
+  // ============================================
+
+  const clearForm = () => {
+    setIssue('');
+    setReport('');
+    setError('');
+    setCopied(false);
+  };
+
+  // ============================================
+  // OPEN REPORT FROM HISTORY
+  // ============================================
+
+  const openHistoryReport = (historyReport: BugReport) => {
+    setSystem(historyReport.system);
+    setEnvironment(historyReport.environment);
+    setReport(historyReport.report);
+    setIssue(historyReport.issueTitle);
+    setError('');
+    setCopied(false);
+  };
+  const deleteHistoryReport = (id: string) => {
+    const reportToDelete = history.find(
+      (historyReport) => historyReport.id === id,
+    );
+
+    if (!reportToDelete) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${reportToDelete.issueTitle}" from report history?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setHistory((previousHistory) =>
+      previousHistory.filter((historyReport) => historyReport.id !== id),
+    );
+  };
+  const clearAllReports = () => {
     if (history.length === 0) {
       return;
     }
@@ -291,260 +343,260 @@
 
     setHistory([]);
   };
-    // ============================================
-    // PARSE REPORT
-    // ============================================
+  // ============================================
+  // PARSE REPORT
+  // ============================================
 
-    const parseReport = (report: string) => {
-      const sections = [
-        'System',
-        'Environment',
-        'Issue Title',
-        'Summary',
-        'Steps to Reproduce',
-        'Expected Result',
-        'Actual Result',
-        'Impact',
-        'Severity',
-        'Additional Notes',
-      ];
+  const parseReport = (report: string) => {
+    const sections = [
+      'System',
+      'Environment',
+      'Issue Title',
+      'Summary',
+      'Steps to Reproduce',
+      'Expected Result',
+      'Actual Result',
+      'Impact',
+      'Severity',
+      'Additional Notes',
+    ];
 
-      const result: Record<string, string> = {};
+    const result: Record<string, string> = {};
 
-      sections.forEach((section, index) => {
-        const start = report.indexOf(section + ':');
+    sections.forEach((section, index) => {
+      const start = report.indexOf(section + ':');
 
-        if (start === -1) return;
+      if (start === -1) return;
 
-        const nextSection = sections
-          .slice(index + 1)
-          .find((s) => report.indexOf(s + ':') > start);
+      const nextSection = sections
+        .slice(index + 1)
+        .find((s) => report.indexOf(s + ':') > start);
 
-        const end = nextSection
-          ? report.indexOf(nextSection + ':')
-          : report.length;
+      const end = nextSection
+        ? report.indexOf(nextSection + ':')
+        : report.length;
 
-        result[section] = report
-          .substring(start + section.length + 1, end)
-          .trim();
-      });
-
-      return result;
-    };
-
-    // ============================================
-    // PARSED REPORT
-    // ============================================
-
-    const parsedReport = report ? parseReport(report) : null;
-
-    // ============================================
-    // FILTER REPORT HISTORY
-    // ============================================
-
-    const filteredHistory = history.filter((historyReport) => {
-      const searchTerm = historySearch.toLowerCase().trim();
-
-      // Search
-      const matchesSearch =
-        !searchTerm ||
-        historyReport.issueTitle.toLowerCase().includes(searchTerm) ||
-        historyReport.system.toLowerCase().includes(searchTerm) ||
-        historyReport.environment.toLowerCase().includes(searchTerm) ||
-        historyReport.severity.toLowerCase().includes(searchTerm) ||
-        historyReport.report.toLowerCase().includes(searchTerm);
-
-      // System filter
-      const matchesSystem =
-        systemFilter === 'All' ||
-        historyReport.system.toLowerCase() === systemFilter.toLowerCase();
-
-      // Environment filter
-      const matchesEnvironment =
-        environmentFilter === 'All' ||
-        historyReport.environment.toLowerCase() ===
-          environmentFilter.toLowerCase();
-
-      // Severity filter
-      const matchesSeverity =
-        severityFilter === 'All' ||
-        historyReport.severity.toLowerCase() === severityFilter.toLowerCase();
-
-      return (
-        matchesSearch && matchesSystem && matchesEnvironment && matchesSeverity
-      );
+      result[section] = report
+        .substring(start + section.length + 1, end)
+        .trim();
     });
 
-    // ============================================
-    // CLEAR HISTORY FILTERS
-    // ============================================
+    return result;
+  };
 
-    const clearHistoryFilters = () => {
-      setHistorySearch('');
-      setSystemFilter('All');
-      setEnvironmentFilter('All');
-      setSeverityFilter('All');
-    };
+  // ============================================
+  // PARSED REPORT
+  // ============================================
 
-    // ============================================
-    // EXPORT DOCX
-    // ============================================
+  const parsedReport = report ? parseReport(report) : null;
 
-    const exportToDocx = async () => {
-      if (!parsedReport) return;
+  // ============================================
+  // FILTER REPORT HISTORY
+  // ============================================
 
-      const doc = new Document({
-        sections: [
-          {
-            children: Object.entries(parsedReport).flatMap(([title, content]) => [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: title,
-                    bold: true,
-                    size: 28,
-                  }),
-                ],
-              }),
+  const filteredHistory = history.filter((historyReport) => {
+    const searchTerm = historySearch.toLowerCase().trim();
 
-              new Paragraph({
-                text: String(content),
-              }),
+    // Search
+    const matchesSearch =
+      !searchTerm ||
+      historyReport.issueTitle.toLowerCase().includes(searchTerm) ||
+      historyReport.system.toLowerCase().includes(searchTerm) ||
+      historyReport.environment.toLowerCase().includes(searchTerm) ||
+      historyReport.severity.toLowerCase().includes(searchTerm) ||
+      historyReport.report.toLowerCase().includes(searchTerm);
 
-              new Paragraph({
-                text: '',
-              }),
-            ]),
-          },
-        ],
-      });
+    // System filter
+    const matchesSystem =
+      systemFilter === 'All' ||
+      historyReport.system.toLowerCase() === systemFilter.toLowerCase();
 
-      const blob = await Packer.toBlob(doc);
+    // Environment filter
+    const matchesEnvironment =
+      environmentFilter === 'All' ||
+      historyReport.environment.toLowerCase() ===
+        environmentFilter.toLowerCase();
 
-      saveAs(blob, `Buggiator_Report_${Date.now()}.docx`);
-    };
-
-    // ============================================
-    // UI
-    // ============================================
+    // Severity filter
+    const matchesSeverity =
+      severityFilter === 'All' ||
+      historyReport.severity.toLowerCase() === severityFilter.toLowerCase();
 
     return (
-      <main
-        className="
+      matchesSearch && matchesSystem && matchesEnvironment && matchesSeverity
+    );
+  });
+
+  // ============================================
+  // CLEAR HISTORY FILTERS
+  // ============================================
+
+  const clearHistoryFilters = () => {
+    setHistorySearch('');
+    setSystemFilter('All');
+    setEnvironmentFilter('All');
+    setSeverityFilter('All');
+  };
+
+  // ============================================
+  // EXPORT DOCX
+  // ============================================
+
+  const exportToDocx = async () => {
+    if (!parsedReport) return;
+
+    const doc = new Document({
+      sections: [
+        {
+          children: Object.entries(parsedReport).flatMap(([title, content]) => [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: title,
+                  bold: true,
+                  size: 28,
+                }),
+              ],
+            }),
+
+            new Paragraph({
+              text: String(content),
+            }),
+
+            new Paragraph({
+              text: '',
+            }),
+          ]),
+        },
+      ],
+    });
+
+    const blob = await Packer.toBlob(doc);
+
+    saveAs(blob, `Buggiator_Report_${Date.now()}.docx`);
+  };
+
+  // ============================================
+  // UI
+  // ============================================
+
+  return (
+    <main
+      className="
           min-h-screen
           bg-slate-100
           p-8
         "
-      >
-        <div
-          className="
+    >
+      <div
+        className="
             max-w-6xl
             mx-auto
           "
-        >
-          {/* =====================================
+      >
+        {/* =====================================
               HEADER
           ===================================== */}
 
-          <div
-            className="
+        <div
+          className="
               flex
               items-center
               gap-4
               mb-10
             "
-          >
-            <div
-              className="
+        >
+          <div
+            className="
                 bg-blue-600
                 text-white
                 p-4
                 rounded-2xl
               "
-            >
-              <Bug size={32} />
-            </div>
+          >
+            <Bug size={32} />
+          </div>
 
-            <div>
-              <h1
-                className="
+          <div>
+            <h1
+              className="
                   text-4xl
                   font-bold
                   text-slate-900
                 "
-              >
-                Buggiator
-              </h1>
+            >
+              Buggiator
+            </h1>
 
-              <p
-                className="
+            <p
+              className="
                   text-slate-500
                 "
-              >
-                AI-powered QA defect reporting assistant
-              </p>
-            </div>
+            >
+              AI-powered QA defect reporting assistant
+            </p>
           </div>
+        </div>
 
-          {/* =====================================
+        {/* =====================================
               MAIN GRID
           ===================================== */}
 
-          <div
-            className="
+        <div
+          className="
               grid
               md:grid-cols-2
               gap-8
             "
-          >
-            {/* ===================================
+        >
+          {/* ===================================
                 INPUT SECTION
             =================================== */}
 
-            <section
-              className="
+          <section
+            className="
                 bg-white
                 rounded-2xl
                 shadow-sm
                 border
                 p-6
               "
-            >
-              <div
-                className="
+          >
+            <div
+              className="
                   flex
                   items-center
                   gap-2
                   mb-6
                 "
-              >
-                <FileText size={20} />
+            >
+              <FileText size={20} />
 
-                <h2
-                  className="
+              <h2
+                className="
                     text-xl
                     font-semibold
                   "
-                >
-                  Create Defect Report
-                </h2>
-              </div>
+              >
+                Create Defect Report
+              </h2>
+            </div>
 
-              {/* SYSTEM */}
+            {/* SYSTEM */}
 
-              <label
-                className="
+            <label
+              className="
                   text-sm
                   font-medium
                 "
-              >
-                System
-              </label>
+            >
+              System
+            </label>
 
-              <select
-                value={system}
-                onChange={(e) => setSystem(e.target.value)}
-                className="
+            <select
+              value={system}
+              onChange={(e) => setSystem(e.target.value)}
+              className="
                   w-full
                   mt-2
                   mb-5
@@ -552,33 +604,33 @@
                   rounded-xl
                   p-3
                 "
-              >
-                <option>PPGIS</option>
+            >
+              <option>PPGIS</option>
 
-                <option>PST Mobile</option>
+              <option>PST Mobile</option>
 
-                <option>PST WEB</option>
+              <option>PST WEB</option>
 
-                <option>NETD WEB</option>
+              <option>NETD WEB</option>
 
-                <option>NETD CAD</option>
-              </select>
+              <option>NETD CAD</option>
+            </select>
 
-              {/* ENVIRONMENT */}
+            {/* ENVIRONMENT */}
 
-              <label
-                className="
+            <label
+              className="
                   text-sm
                   font-medium
                 "
-              >
-                Environment
-              </label>
+            >
+              Environment
+            </label>
 
-              <select
-                value={environment}
-                onChange={(e) => setEnvironment(e.target.value)}
-                className="
+            <select
+              value={environment}
+              onChange={(e) => setEnvironment(e.target.value)}
+              className="
                   w-full
                   mt-2
                   mb-5
@@ -586,29 +638,29 @@
                   rounded-xl
                   p-3
                 "
-              >
-                <option>DCUT</option>
+            >
+              <option>DCUT</option>
 
-                <option>PREBAU</option>
+              <option>PREBAU</option>
 
-                <option>UAT</option>
+              <option>UAT</option>
 
-                <option>Production</option>
-              </select>
+              <option>Production</option>
+            </select>
 
-              {/* ISSUE DESCRIPTION */}
+            {/* ISSUE DESCRIPTION */}
 
-              <label
-                className="
+            <label
+              className="
                   text-sm
                   font-medium
                 "
-              >
-                Summary of the issue
-              </label>
+            >
+              Summary of the issue
+            </label>
 
-              <textarea
-                className="
+            <textarea
+              className="
                   w-full
                   h-48
                   mt-2
@@ -619,19 +671,19 @@
                   focus:ring-2
                   focus:ring-blue-500
                 "
-                placeholder="
+              placeholder="
                   Example: Unable to generate QR code for attachment inventory.
                 "
-                value={issue}
-                onChange={(e) => setIssue(e.target.value)}
-              />
+              value={issue}
+              onChange={(e) => setIssue(e.target.value)}
+            />
 
-              {/* GENERATE BUTTON */}
+            {/* GENERATE BUTTON */}
 
-              <button
-                onClick={generateReport}
-                disabled={loading || !issue.trim()}
-                className="
+            <button
+              onClick={generateReport}
+              disabled={loading || !issue.trim()}
+              className="
                   mt-5
                   w-full
                   bg-blue-600
@@ -645,18 +697,18 @@
                   items-center
                   gap-2
                 "
-              >
-                <Sparkles size={18} />
+            >
+              <Sparkles size={18} />
 
-                {loading ? 'Generating...' : 'Generate Bug Report'}
-              </button>
+              {loading ? 'Generating...' : 'Generate Bug Report'}
+            </button>
 
-              {/* CLEAR BUTTON */}
+            {/* CLEAR BUTTON */}
 
-              <button
-                onClick={clearForm}
-                disabled={loading || (!issue.trim() && !report && !error)}
-                className="
+            <button
+              onClick={clearForm}
+              disabled={loading || (!issue.trim() && !report && !error)}
+              className="
                   mt-3
                   w-full
                   text-sm
@@ -669,49 +721,49 @@
                   rounded-xl
                   disabled:opacity-50
                 "
-              >
-                Clear
-              </button>
-            </section>
+            >
+              Clear
+            </button>
+          </section>
 
-            {/* ===================================
+          {/* ===================================
                 OUTPUT SECTION
             =================================== */}
 
-            <section
-              className="
+          <section
+            className="
                 bg-white
                 rounded-2xl
                 shadow-sm
                 border
                 p-6
               "
-            >
-              <h2
-                className="
+          >
+            <h2
+              className="
                   text-xl
                   font-semibold
                   mb-6
                 "
-              >
-                Generated QA Report
-              </h2>
+            >
+              Generated QA Report
+            </h2>
 
-              {/* ACTION BUTTONS */}
+            {/* ACTION BUTTONS */}
 
-              {report && !loading && (
-                <div
-                  className="
+            {report && !loading && (
+              <div
+                className="
                     flex
                     gap-2
                     mb-4
                   "
-                >
-                  {/* COPY */}
+              >
+                {/* COPY */}
 
-                  <button
-                    onClick={copyReport}
-                    className="
+                <button
+                  onClick={copyReport}
+                  className="
                       px-3
                       py-1.5
                       text-sm
@@ -725,17 +777,17 @@
                       items-center
                       gap-1.5
                     "
-                  >
-                    {copied ? <Check size={15} /> : <Copy size={15} />}
+                >
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
 
-                    {copied ? 'Copied!' : 'Copy Report'}
-                  </button>
+                  {copied ? 'Copied!' : 'Copy Report'}
+                </button>
 
-                  {/* EXPORT */}
+                {/* EXPORT */}
 
-                  <button
-                    onClick={exportToDocx}
-                    className="
+                <button
+                  onClick={exportToDocx}
+                  className="
                       px-3
                       py-1.5
                       text-sm
@@ -745,17 +797,17 @@
                       rounded-lg
                       hover:bg-blue-700
                     "
-                  >
-                    Export DOCX
-                  </button>
-                </div>
-              )}
+                >
+                  Export DOCX
+                </button>
+              </div>
+            )}
 
-              {/* ERROR */}
+            {/* ERROR */}
 
-              {error && (
-                <div
-                  className="
+            {error && (
+              <div
+                className="
                     bg-red-50
                     border
                     border-red-200
@@ -765,15 +817,15 @@
                     p-4
                     mb-4
                   "
-                >
-                  {error}
-                </div>
-              )}
+              >
+                {error}
+              </div>
+            )}
 
-              {/* REPORT DISPLAY */}
+            {/* REPORT DISPLAY */}
 
-              <div
-                className="
+            <div
+              className="
                   bg-slate-50
                   rounded-xl
                   p-5
@@ -782,124 +834,124 @@
                   text-sm
                   leading-6
                 "
-              >
-                {/* LOADING */}
+            >
+              {/* LOADING */}
 
-                {loading ? (
-                  <div
-                    className="
+              {loading ? (
+                <div
+                  className="
                       space-y-3
                       animate-pulse
                     "
-                  >
-                    <div
-                      className="
+                >
+                  <div
+                    className="
                         h-4
                         bg-slate-200
                         rounded
                         w-1/3
                       "
-                    />
+                  />
 
-                    <div
-                      className="
+                  <div
+                    className="
                         h-3
                         bg-slate-200
                         rounded
                         w-full
                       "
-                    />
+                  />
 
-                    <div
-                      className="
+                  <div
+                    className="
                         h-3
                         bg-slate-200
                         rounded
                         w-5/6
                       "
-                    />
+                  />
 
-                    <div
-                      className="
+                  <div
+                    className="
                         h-3
                         bg-slate-200
                         rounded
                         w-full
                       "
-                    />
+                  />
 
-                    <div
-                      className="
+                  <div
+                    className="
                         h-4
                         bg-slate-200
                         rounded
                         w-1/4
                         mt-6
                       "
-                    />
+                  />
 
-                    <div
-                      className="
+                  <div
+                    className="
                         h-3
                         bg-slate-200
                         rounded
                         w-full
                       "
-                    />
+                  />
 
-                    <div
-                      className="
+                  <div
+                    className="
                         h-3
                         bg-slate-200
                         rounded
                         w-2/3
                       "
-                    />
-                  </div>
-                ) : parsedReport ? (
-                  /* =================================
+                  />
+                </div>
+              ) : parsedReport ? (
+                /* =================================
                       PARSED REPORT
                   ================================= */
 
-                  <div
-                    className="
+                <div
+                  className="
                       space-y-4
                     "
-                  >
-                    {Object.entries(parsedReport).map(([title, content]) => (
-                      <div
-                        key={title}
-                        className="
+                >
+                  {Object.entries(parsedReport).map(([title, content]) => (
+                    <div
+                      key={title}
+                      className="
                             bg-white
                             border
                             rounded-xl
                             overflow-hidden
                           "
-                      >
-                        {/* SECTION TITLE */}
+                    >
+                      {/* SECTION TITLE */}
 
-                        <div
-                          className="
+                      <div
+                        className="
                               bg-slate-100
                               px-4
                               py-2
                               font-semibold
                             "
-                        >
-                          {title}
-                        </div>
+                      >
+                        {title}
+                      </div>
 
-                        {/* SECTION CONTENT */}
+                      {/* SECTION CONTENT */}
 
-                        <div
-                          className="
+                      <div
+                        className="
                               p-4
                               whitespace-pre-wrap
                             "
-                        >
-                          {title === 'Severity' ? (
-                            <span
-                              className={`
+                      >
+                        {title === 'Severity' ? (
+                          <span
+                            className={`
                                   inline-flex
                                   px-3
                                   py-1
@@ -912,34 +964,36 @@
                                       ? 'bg-red-100 text-red-700'
                                       : content.toLowerCase().includes('high')
                                         ? 'bg-orange-100 text-orange-700'
-                                        : content.toLowerCase().includes('medium')
+                                        : content
+                                              .toLowerCase()
+                                              .includes('medium')
                                           ? 'bg-yellow-100 text-yellow-700'
                                           : 'bg-green-100 text-green-700'
                                   }
                                 `}
-                            >
-                              {content}
-                            </span>
-                          ) : (
-                            content
-                          )}
-                        </div>
+                          >
+                            {content}
+                          </span>
+                        ) : (
+                          content
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  'Your AI-generated defect report will appear here.'
-                )}
-              </div>
-            </section>
-          </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                'Your AI-generated defect report will appear here.'
+              )}
+            </div>
+          </section>
+        </div>
 
-          {/* =====================================
+        {/* =====================================
               REPORT HISTORY
           ===================================== */}
 
-          <section
-            className="
+        <section
+          className="
               mt-8
               bg-white
               rounded-2xl
@@ -947,52 +1001,52 @@
               border
               p-6
             "
-          >
-            {/* HISTORY HEADER */}
+        >
+          {/* HISTORY HEADER */}
 
-            <div
-              className="
+          <div
+            className="
                 flex
                 items-center
                 justify-between
                 mb-6
               "
-            >
-              <div>
-                <h2
-                  className="
+          >
+            <div>
+              <h2
+                className="
                     text-xl
                     font-semibold
                     text-slate-900
                   "
-                >
-                  Report History
-                </h2>
+              >
+                Report History
+              </h2>
 
-                <p
-                  className="
+              <p
+                className="
                     text-sm
                     text-slate-500
                     mt-1
                   "
-                >
-                  Previously generated defect reports
-                </p>
+              >
+                Previously generated defect reports
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="text-sm text-slate-500">
+                {isMounted
+                  ? `${history.length} ${
+                      history.length === 1 ? 'report' : 'reports'
+                    }`
+                  : '0 reports'}
               </div>
 
-                        <div className="flex items-center gap-3">
-    <div className="text-sm text-slate-500">
-      {isMounted
-        ? `${history.length} ${
-            history.length === 1 ? 'report' : 'reports'
-          }`
-        : '0 reports'}
-    </div>
-
-    <button
-      onClick={clearAllReports}
-      disabled={!isMounted || history.length === 0}
-      className="
+              <button
+                onClick={clearAllReports}
+                disabled={!isMounted || history.length === 0}
+                className="
         px-3
         py-1.5
         text-sm
@@ -1005,25 +1059,23 @@
         disabled:opacity-40
         disabled:cursor-not-allowed
       "
-    >
-      Clear All
-    </button>
-  </div>
-
-
+              >
+                Clear All
+              </button>
             </div>
+          </div>
 
-            {/* =====================================
+          {/* =====================================
                 SEARCH HISTORY
             ===================================== */}
 
-            <div className="mb-5">
-              <input
-                type="text"
-                value={historySearch}
-                onChange={(e) => setHistorySearch(e.target.value)}
-                placeholder="Search reports..."
-                className="
+          <div className="mb-5">
+            <input
+              type="text"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              placeholder="Search reports..."
+              className="
                   w-full
                   border
                   border-slate-300
@@ -1036,41 +1088,41 @@
                   focus:ring-blue-500
                   focus:border-blue-500
                 "
-              />
-            </div>
+            />
+          </div>
 
-            {/* =====================================
+          {/* =====================================
                 HISTORY FILTERS
             ===================================== */}
 
-            <div
-              className="
+          <div
+            className="
                 grid
                 grid-cols-1
                 md:grid-cols-3
                 gap-4
                 mb-4
               "
-            >
-              {/* SYSTEM FILTER */}
+          >
+            {/* SYSTEM FILTER */}
 
-              <div>
-                <label
-                  className="
+            <div>
+              <label
+                className="
                     block
                     text-sm
                     font-medium
                     text-slate-700
                     mb-2
                   "
-                >
-                  System
-                </label>
+              >
+                System
+              </label>
 
-                <select
-                  value={systemFilter}
-                  onChange={(e) => setSystemFilter(e.target.value)}
-                  className="
+              <select
+                value={systemFilter}
+                onChange={(e) => setSystemFilter(e.target.value)}
+                className="
                     w-full
                     border
                     border-slate-300
@@ -1084,132 +1136,132 @@
                     focus:ring-blue-500
                     focus:border-blue-500
                   "
-                >
-                  <option value="All">All Systems</option>
+              >
+                <option value="All">All Systems</option>
 
-                  <option value="PPGIS">PPGIS</option>
+                <option value="PPGIS">PPGIS</option>
 
-                  <option value="PST Mobile">PST Mobile</option>
+                <option value="PST Mobile">PST Mobile</option>
 
-                  <option value="PST WEB">PST WEB</option>
+                <option value="PST WEB">PST WEB</option>
 
-                  <option value="NETD WEB">NETD WEB</option>
+                <option value="NETD WEB">NETD WEB</option>
 
-                  <option value="NETD CAD">NETD CAD</option>
-                </select>
-              </div>
-
-              {/* ENVIRONMENT FILTER */}
-
-              <div>
-                <label
-                  className="
-                    block
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    mb-2
-                  "
-                >
-                  Environment
-                </label>
-
-                <select
-                  value={environmentFilter}
-                  onChange={(e) => setEnvironmentFilter(e.target.value)}
-                  className="
-                    w-full
-                    border
-                    border-slate-300
-                    rounded-xl
-                    px-4
-                    py-3
-                    text-sm
-                    bg-white
-                    outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                    focus:border-blue-500
-                  "
-                >
-                  <option value="All">All Environments</option>
-
-                  <option value="DCUT">DCUT</option>
-
-                  <option value="PREBAU">PREBAU</option>
-
-                  <option value="UAT">UAT</option>
-
-                  <option value="Production">Production</option>
-                </select>
-              </div>
-
-              {/* SEVERITY FILTER */}
-
-              <div>
-                <label
-                  className="
-                    block
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    mb-2
-                  "
-                >
-                  Severity
-                </label>
-
-                <select
-                  value={severityFilter}
-                  onChange={(e) => setSeverityFilter(e.target.value)}
-                  className="
-                    w-full
-                    border
-                    border-slate-300
-                    rounded-xl
-                    px-4
-                    py-3
-                    text-sm
-                    bg-white
-                    outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                    focus:border-blue-500
-                  "
-                >
-                  <option value="All">All Severities</option>
-
-                  <option value="Critical">Critical</option>
-
-                  <option value="High">High</option>
-
-                  <option value="Medium">Medium</option>
-
-                  <option value="Low">Low</option>
-                </select>
-              </div>
+                <option value="NETD CAD">NETD CAD</option>
+              </select>
             </div>
 
-            {/* =====================================
+            {/* ENVIRONMENT FILTER */}
+
+            <div>
+              <label
+                className="
+                    block
+                    text-sm
+                    font-medium
+                    text-slate-700
+                    mb-2
+                  "
+              >
+                Environment
+              </label>
+
+              <select
+                value={environmentFilter}
+                onChange={(e) => setEnvironmentFilter(e.target.value)}
+                className="
+                    w-full
+                    border
+                    border-slate-300
+                    rounded-xl
+                    px-4
+                    py-3
+                    text-sm
+                    bg-white
+                    outline-none
+                    focus:ring-2
+                    focus:ring-blue-500
+                    focus:border-blue-500
+                  "
+              >
+                <option value="All">All Environments</option>
+
+                <option value="DCUT">DCUT</option>
+
+                <option value="PREBAU">PREBAU</option>
+
+                <option value="UAT">UAT</option>
+
+                <option value="Production">Production</option>
+              </select>
+            </div>
+
+            {/* SEVERITY FILTER */}
+
+            <div>
+              <label
+                className="
+                    block
+                    text-sm
+                    font-medium
+                    text-slate-700
+                    mb-2
+                  "
+              >
+                Severity
+              </label>
+
+              <select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value)}
+                className="
+                    w-full
+                    border
+                    border-slate-300
+                    rounded-xl
+                    px-4
+                    py-3
+                    text-sm
+                    bg-white
+                    outline-none
+                    focus:ring-2
+                    focus:ring-blue-500
+                    focus:border-blue-500
+                  "
+              >
+                <option value="All">All Severities</option>
+
+                <option value="Critical">Critical</option>
+
+                <option value="High">High</option>
+
+                <option value="Medium">Medium</option>
+
+                <option value="Low">Low</option>
+              </select>
+            </div>
+          </div>
+
+          {/* =====================================
                 CLEAR FILTERS
             ===================================== */}
 
-            <div
-              className="
+          <div
+            className="
                 flex
                 justify-end
                 mb-6
               "
-            >
-              <button
-                onClick={clearHistoryFilters}
-                disabled={
-                  !historySearch &&
-                  systemFilter === 'All' &&
-                  environmentFilter === 'All' &&
-                  severityFilter === 'All'
-                }
-                className="
+          >
+            <button
+              onClick={clearHistoryFilters}
+              disabled={
+                !historySearch &&
+                systemFilter === 'All' &&
+                environmentFilter === 'All' &&
+                severityFilter === 'All'
+              }
+              className="
                   px-4
                   py-2
                   text-sm
@@ -1222,89 +1274,89 @@
                   disabled:opacity-40
                   disabled:cursor-not-allowed
                 "
-              >
-                Clear Filters
-              </button>
-            </div>
+            >
+              Clear Filters
+            </button>
+          </div>
 
-            {/* =====================================
+          {/* =====================================
                 EMPTY HISTORY
             ===================================== */}
 
-            {!isMounted ? (
-              <div
-                className="
+          {!isMounted ? (
+            <div
+              className="
                   text-center
                   py-10
                   text-slate-500
                 "
-              >
-                Loading reports...
-              </div>
-            ) : history.length === 0 ? (
-              <div
-                className="
+            >
+              Loading reports...
+            </div>
+          ) : history.length === 0 ? (
+            <div
+              className="
                   text-center
                   py-10
                   text-slate-500
                 "
-              >
-                No reports in history yet.
-                <p
-                  className="
+            >
+              No reports in history yet.
+              <p
+                className="
                     text-sm
                     mt-1
                   "
-                >
-                  Generate a defect report to see it here.
-                </p>
-              </div>
-            ) : filteredHistory.length === 0 ? (
-              <div
-                className="
+              >
+                Generate a defect report to see it here.
+              </p>
+            </div>
+          ) : filteredHistory.length === 0 ? (
+            <div
+              className="
                   text-center
                   py-10
                   text-slate-500
                 "
-              >
-                <p>No reports found matching your filters.</p>
+            >
+              <p>No reports found matching your filters.</p>
 
-                <button
-                  onClick={clearHistoryFilters}
-                  className="
+              <button
+                onClick={clearHistoryFilters}
+                className="
                     mt-3
                     text-sm
                     text-blue-600
                     hover:text-blue-700
                     font-medium
                   "
-                >
-                  Clear Filters
-                </button>
-              </div>
-            ) : (
-              /* =====================================
+              >
+                Clear Filters
+              </button>
+            </div>
+          ) : (
+            /* =====================================
                   REPORT LIST
               ===================================== */
 
-              <div
-                className="
+            <div
+              className="
                   space-y-3
                 "
-              >
-                {filteredHistory.map((historyReport) => (
-                  <div
-                    key={historyReport.id}
-                    className="
+            >
+              {filteredHistory.map((historyReport) => (
+                <div
+                  key={historyReport.id}
+                  className="
                         border
                         rounded-xl
                         p-4
                         hover:bg-slate-50
                         transition
                       "
-                  >
-                    <div
-                      className="
+                >
+                  <div
+                    className="
                           flex
                           flex-col
                           md:flex-row
@@ -1312,26 +1364,26 @@
                           md:justify-between
                           gap-4
                         "
-                    >
-                      {/* REPORT INFORMATION */}
+                  >
+                    {/* REPORT INFORMATION */}
 
-                      <div
-                        className="
+                    <div
+                      className="
                             min-w-0
                           "
-                      >
-                        <h3
-                          className="
+                    >
+                      <h3
+                        className="
                               font-semibold
                               text-slate-900
                               truncate
                             "
-                        >
-                          {historyReport.issueTitle}
-                        </h3>
+                      >
+                        {historyReport.issueTitle}
+                      </h3>
 
-                        <div
-                          className="
+                      <div
+                        className="
                               flex
                               flex-wrap
                               items-center
@@ -1340,32 +1392,32 @@
                               text-sm
                               text-slate-500
                             "
-                        >
-                          <span>{historyReport.system}</span>
+                      >
+                        <span>{historyReport.system}</span>
 
-                          <span>•</span>
+                        <span>•</span>
 
-                          <span>{historyReport.environment}</span>
+                        <span>{historyReport.environment}</span>
 
-                          <span>•</span>
+                        <span>•</span>
 
-                          <span>
-                            {new Date(historyReport.createdAt).toLocaleString()}
-                          </span>
-                        </div>
+                        <span>
+                          {new Date(historyReport.createdAt).toLocaleString()}
+                        </span>
                       </div>
+                    </div>
 
-                      {/* SEVERITY + OPEN */}
+                    {/* SEVERITY + OPEN */}
 
-                      <div
-                        className="
+                    <div
+                      className="
                             flex
                             items-center
                             gap-3
                           "
-                      >
-                        <span
-                          className={`
+                    >
+                      <span
+                        className={`
                               inline-flex
                               px-3
                               py-1
@@ -1389,15 +1441,15 @@
                                       : 'bg-green-100 text-green-700'
                               }
                             `}
-                        >
-                          {historyReport.severity}
-                        </span>
+                      >
+                        {historyReport.severity}
+                      </span>
 
-                        {/* OPEN */}
+                      {/* OPEN */}
 
-                        <button
-                          onClick={() => openHistoryReport(historyReport)}
-                          className="
+                      <button
+                        onClick={() => openHistoryReport(historyReport)}
+                        className="
                               px-3
                               py-1.5
                               text-sm
@@ -1408,24 +1460,24 @@
                               rounded-lg
                               hover:bg-blue-50
                             "
-                        >
-                          Open
-                        </button>
-                        <button
-                          onClick={() => deleteHistoryReport(historyReport.id)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </button>
-                      </div>
+                      >
+                        Open
+                      </button>
+                      <button
+                        onClick={() => deleteHistoryReport(historyReport.id)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-    );
-  }
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
