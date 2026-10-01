@@ -82,8 +82,6 @@ export default function Home() {
   const validateIssueDescription = (value: string) => {
     const cleaned = value.trim().toLowerCase();
 
-    // Remove special characters for validation purposes only.
-    // The original user input remains unchanged.
     const normalized = cleaned
       .replace(/[^a-z0-9\s]/gi, ' ')
       .replace(/\s+/g, ' ')
@@ -94,26 +92,16 @@ export default function Home() {
       return 'Please describe the issue before generating a report.';
     }
 
-    // Obvious test / placeholder inputs
+    // Invalid inputs
     const invalidInputs = [
-      'hi',
-      'hello',
-      'hey',
-      'test',
-      'testing',
-      'asdf',
-      'abc',
-      '123',
-      '1234',
-      'sample',
-      'sample test',
+      // ...
     ];
 
     if (invalidInputs.includes(normalized)) {
       return 'Please provide a meaningful issue description.';
     }
 
-    // Input contains no letters
+    // No letters
     if (!/[a-zA-Z]/.test(normalized)) {
       return 'Please provide a meaningful issue description.';
     }
@@ -123,18 +111,9 @@ export default function Home() {
       return 'Please provide more details about the issue.';
     }
 
-    // Common non-issue / casual sentences
+    // Non-issue / casual sentences
     const nonIssuePatterns = [
-      'i like ',
-      'i love ',
-      'i hate ',
-      'i watched ',
-      'i went ',
-      'i ate ',
-      'my favorite ',
-      'the weather ',
-      'today is ',
-      'yesterday was ',
+      // ...
     ];
 
     const looksLikeNonIssue = nonIssuePatterns.some((pattern) =>
@@ -143,6 +122,34 @@ export default function Home() {
 
     if (looksLikeNonIssue) {
       return 'This does not appear to describe a software issue. Please describe the problem you encountered.';
+    }
+
+    // Detect vague statements followed by an arbitrary numeric code.
+    // Example: "Something is wrong.1231"
+    const vagueWithNumericCodePatterns = [
+      /^something is wrong\s+\d+$/,
+      /^something went wrong\s+\d+$/,
+      /^it is broken\s+\d+$/,
+      /^its broken\s+\d+$/,
+      /^this is broken\s+\d+$/,
+      /^does not work\s+\d+$/,
+      /^doesnt work\s+\d+$/,
+      /^not working\s+\d+$/,
+      /^there is a problem\s+\d+$/,
+      /^there is an issue\s+\d+$/,
+      /^the application is broken\s+\d+$/,
+      /^the app is broken\s+\d+$/,
+      /^the system is broken\s+\d+$/,
+      /^the page is broken\s+\d+$/,
+      /^the map is broken\s+\d+$/,
+    ];
+
+    const hasVagueNumericCode = vagueWithNumericCodePatterns.some((pattern) =>
+      pattern.test(normalized),
+    );
+
+    if (hasVagueNumericCode) {
+      return 'Please provide more details about the issue, such as what you were doing, what you expected to happen, and what actually happened.';
     }
 
     // Very vague issue descriptions
@@ -160,10 +167,17 @@ export default function Home() {
       'looks weird',
       'there is a problem',
       'there is an issue',
+
+      // Additional vague descriptions
+      'the map has an issue',
+      'the map has a problem',
+      'the map is broken',
+
+      // ...
     ];
 
     if (vagueInputs.includes(normalized)) {
-      return 'Please provide more details about the issue, such as what you were doing and what went wrong.';
+      return 'Please provide more details about the issue, such as what you were doing, what you expected to happen, and what actually happened.';
     }
 
     return '';
@@ -483,36 +497,36 @@ export default function Home() {
   return (
     <main
       className="
-          min-h-screen
-          bg-slate-100
-          p-8
-        "
+            min-h-screen
+            bg-slate-100
+            p-8
+          "
     >
       <div
         className="
-            max-w-6xl
-            mx-auto
-          "
+              max-w-6xl
+              mx-auto
+            "
       >
         {/* =====================================
-              HEADER
-          ===================================== */}
+                HEADER
+            ===================================== */}
 
         <div
           className="
-              flex
-              items-center
-              gap-4
-              mb-10
-            "
+                flex
+                items-center
+                gap-4
+                mb-10
+              "
         >
           <div
             className="
-                bg-blue-600
-                text-white
-                p-4
-                rounded-2xl
-              "
+                  bg-blue-600
+                  text-white
+                  p-4
+                  rounded-2xl
+                "
           >
             <Bug size={32} />
           </div>
@@ -520,18 +534,18 @@ export default function Home() {
           <div>
             <h1
               className="
-                  text-4xl
-                  font-bold
-                  text-slate-900
-                "
+                    text-4xl
+                    font-bold
+                    text-slate-900
+                  "
             >
               Buggiator
             </h1>
 
             <p
               className="
-                  text-slate-500
-                "
+                    text-slate-500
+                  "
             >
               AI-powered QA defect reporting assistant
             </p>
@@ -539,44 +553,44 @@ export default function Home() {
         </div>
 
         {/* =====================================
-              MAIN GRID
-          ===================================== */}
+                MAIN GRID
+            ===================================== */}
 
         <div
           className="
-              grid
-              md:grid-cols-2
-              gap-8
-            "
+                grid
+                md:grid-cols-2
+                gap-8
+              "
         >
           {/* ===================================
-                INPUT SECTION
-            =================================== */}
+                  INPUT SECTION
+              =================================== */}
 
           <section
             className="
-                bg-white
-                rounded-2xl
-                shadow-sm
-                border
-                p-6
-              "
+                  bg-white
+                  rounded-2xl
+                  shadow-sm
+                  border
+                  p-6
+                "
           >
             <div
               className="
-                  flex
-                  items-center
-                  gap-2
-                  mb-6
-                "
+                    flex
+                    items-center
+                    gap-2
+                    mb-6
+                  "
             >
               <FileText size={20} />
 
               <h2
                 className="
-                    text-xl
-                    font-semibold
-                  "
+                      text-xl
+                      font-semibold
+                    "
               >
                 Create Defect Report
               </h2>
@@ -586,9 +600,9 @@ export default function Home() {
 
             <label
               className="
-                  text-sm
-                  font-medium
-                "
+                    text-sm
+                    font-medium
+                  "
             >
               System
             </label>
@@ -597,13 +611,13 @@ export default function Home() {
               value={system}
               onChange={(e) => setSystem(e.target.value)}
               className="
-                  w-full
-                  mt-2
-                  mb-5
-                  border
-                  rounded-xl
-                  p-3
-                "
+                    w-full
+                    mt-2
+                    mb-5
+                    border
+                    rounded-xl
+                    p-3
+                  "
             >
               <option>PPGIS</option>
 
@@ -620,9 +634,9 @@ export default function Home() {
 
             <label
               className="
-                  text-sm
-                  font-medium
-                "
+                    text-sm
+                    font-medium
+                  "
             >
               Environment
             </label>
@@ -631,13 +645,13 @@ export default function Home() {
               value={environment}
               onChange={(e) => setEnvironment(e.target.value)}
               className="
-                  w-full
-                  mt-2
-                  mb-5
-                  border
-                  rounded-xl
-                  p-3
-                "
+                    w-full
+                    mt-2
+                    mb-5
+                    border
+                    rounded-xl
+                    p-3
+                  "
             >
               <option>DCUT</option>
 
@@ -652,28 +666,28 @@ export default function Home() {
 
             <label
               className="
-                  text-sm
-                  font-medium
-                "
+                    text-sm
+                    font-medium
+                  "
             >
               Summary of the issue
             </label>
 
             <textarea
               className="
-                  w-full
-                  h-48
-                  mt-2
-                  border
-                  rounded-xl
-                  p-4
-                  resize-none
-                  focus:ring-2
-                  focus:ring-blue-500
-                "
+                    w-full
+                    h-48
+                    mt-2
+                    border
+                    rounded-xl
+                    p-4
+                    resize-none
+                    focus:ring-2
+                    focus:ring-blue-500
+                  "
               placeholder="
-                  Example: Unable to generate QR code for attachment inventory.
-                "
+                    Example: Unable to generate QR code for attachment inventory.
+                  "
               value={issue}
               onChange={(e) => setIssue(e.target.value)}
             />
@@ -684,19 +698,19 @@ export default function Home() {
               onClick={generateReport}
               disabled={loading || !issue.trim()}
               className="
-                  mt-5
-                  w-full
-                  bg-blue-600
-                  hover:bg-blue-700
-                  disabled:bg-gray-400
-                  text-white
-                  py-3
-                  rounded-xl
-                  flex
-                  justify-center
-                  items-center
-                  gap-2
-                "
+                    mt-5
+                    w-full
+                    bg-blue-600
+                    hover:bg-blue-700
+                    disabled:bg-gray-400
+                    text-white
+                    py-3
+                    rounded-xl
+                    flex
+                    justify-center
+                    items-center
+                    gap-2
+                  "
             >
               <Sparkles size={18} />
 
@@ -709,42 +723,42 @@ export default function Home() {
               onClick={clearForm}
               disabled={loading || (!issue.trim() && !report && !error)}
               className="
-                  mt-3
-                  w-full
-                  text-sm
-                  font-medium
-                  text-blue-500
-                  border
-                  border-blue-200
-                  hover:bg-blue-50
-                  py-2.5
-                  rounded-xl
-                  disabled:opacity-50
-                "
+                    mt-3
+                    w-full
+                    text-sm
+                    font-medium
+                    text-blue-500
+                    border
+                    border-blue-200
+                    hover:bg-blue-50
+                    py-2.5
+                    rounded-xl
+                    disabled:opacity-50
+                  "
             >
               Clear
             </button>
           </section>
 
           {/* ===================================
-                OUTPUT SECTION
-            =================================== */}
+                  OUTPUT SECTION
+              =================================== */}
 
           <section
             className="
-                bg-white
-                rounded-2xl
-                shadow-sm
-                border
-                p-6
-              "
+                  bg-white
+                  rounded-2xl
+                  shadow-sm
+                  border
+                  p-6
+                "
           >
             <h2
               className="
-                  text-xl
-                  font-semibold
-                  mb-6
-                "
+                    text-xl
+                    font-semibold
+                    mb-6
+                  "
             >
               Generated QA Report
             </h2>
@@ -754,29 +768,29 @@ export default function Home() {
             {report && !loading && (
               <div
                 className="
-                    flex
-                    gap-2
-                    mb-4
-                  "
+                      flex
+                      gap-2
+                      mb-4
+                    "
               >
                 {/* COPY */}
 
                 <button
                   onClick={copyReport}
                   className="
-                      px-3
-                      py-1.5
-                      text-sm
-                      font-medium
-                      text-slate-700
-                      border
-                      border-slate-300
-                      rounded-lg
-                      hover:bg-slate-50
-                      flex
-                      items-center
-                      gap-1.5
-                    "
+                        px-3
+                        py-1.5
+                        text-sm
+                        font-medium
+                        text-slate-700
+                        border
+                        border-slate-300
+                        rounded-lg
+                        hover:bg-slate-50
+                        flex
+                        items-center
+                        gap-1.5
+                      "
                 >
                   {copied ? <Check size={15} /> : <Copy size={15} />}
 
@@ -788,15 +802,15 @@ export default function Home() {
                 <button
                   onClick={exportToDocx}
                   className="
-                      px-3
-                      py-1.5
-                      text-sm
-                      font-medium
-                      text-white
-                      bg-blue-600
-                      rounded-lg
-                      hover:bg-blue-700
-                    "
+                        px-3
+                        py-1.5
+                        text-sm
+                        font-medium
+                        text-white
+                        bg-blue-600
+                        rounded-lg
+                        hover:bg-blue-700
+                      "
                 >
                   Export DOCX
                 </button>
@@ -808,15 +822,15 @@ export default function Home() {
             {error && (
               <div
                 className="
-                    bg-red-50
-                    border
-                    border-red-200
-                    text-red-700
-                    text-sm
-                    rounded-xl
-                    p-4
-                    mb-4
-                  "
+                      bg-red-50
+                      border
+                      border-red-200
+                      text-red-700
+                      text-sm
+                      rounded-xl
+                      p-4
+                      mb-4
+                    "
               >
                 {error}
               </div>
@@ -826,117 +840,117 @@ export default function Home() {
 
             <div
               className="
-                  bg-slate-50
-                  rounded-xl
-                  p-5
-                  h-[500px]
-                  overflow-y-auto
-                  text-sm
-                  leading-6
-                "
+                    bg-slate-50
+                    rounded-xl
+                    p-5
+                    h-[500px]
+                    overflow-y-auto
+                    text-sm
+                    leading-6
+                  "
             >
               {/* LOADING */}
 
               {loading ? (
                 <div
                   className="
-                      space-y-3
-                      animate-pulse
-                    "
+                        space-y-3
+                        animate-pulse
+                      "
                 >
                   <div
                     className="
-                        h-4
-                        bg-slate-200
-                        rounded
-                        w-1/3
-                      "
+                          h-4
+                          bg-slate-200
+                          rounded
+                          w-1/3
+                        "
                   />
 
                   <div
                     className="
-                        h-3
-                        bg-slate-200
-                        rounded
-                        w-full
-                      "
+                          h-3
+                          bg-slate-200
+                          rounded
+                          w-full
+                        "
                   />
 
                   <div
                     className="
-                        h-3
-                        bg-slate-200
-                        rounded
-                        w-5/6
-                      "
+                          h-3
+                          bg-slate-200
+                          rounded
+                          w-5/6
+                        "
                   />
 
                   <div
                     className="
-                        h-3
-                        bg-slate-200
-                        rounded
-                        w-full
-                      "
+                          h-3
+                          bg-slate-200
+                          rounded
+                          w-full
+                        "
                   />
 
                   <div
                     className="
-                        h-4
-                        bg-slate-200
-                        rounded
-                        w-1/4
-                        mt-6
-                      "
+                          h-4
+                          bg-slate-200
+                          rounded
+                          w-1/4
+                          mt-6
+                        "
                   />
 
                   <div
                     className="
-                        h-3
-                        bg-slate-200
-                        rounded
-                        w-full
-                      "
+                          h-3
+                          bg-slate-200
+                          rounded
+                          w-full
+                        "
                   />
 
                   <div
                     className="
-                        h-3
-                        bg-slate-200
-                        rounded
-                        w-2/3
-                      "
+                          h-3
+                          bg-slate-200
+                          rounded
+                          w-2/3
+                        "
                   />
                 </div>
               ) : parsedReport ? (
                 /* =================================
-                      PARSED REPORT
-                  ================================= */
+                        PARSED REPORT
+                    ================================= */
 
                 <div
                   className="
-                      space-y-4
-                    "
+                        space-y-4
+                      "
                 >
                   {Object.entries(parsedReport).map(([title, content]) => (
                     <div
                       key={title}
                       className="
-                            bg-white
-                            border
-                            rounded-xl
-                            overflow-hidden
-                          "
+                              bg-white
+                              border
+                              rounded-xl
+                              overflow-hidden
+                            "
                     >
                       {/* SECTION TITLE */}
 
                       <div
                         className="
-                              bg-slate-100
-                              px-4
-                              py-2
-                              font-semibold
-                            "
+                                bg-slate-100
+                                px-4
+                                py-2
+                                font-semibold
+                              "
                       >
                         {title}
                       </div>
@@ -945,32 +959,32 @@ export default function Home() {
 
                       <div
                         className="
-                              p-4
-                              whitespace-pre-wrap
-                            "
+                                p-4
+                                whitespace-pre-wrap
+                              "
                       >
                         {title === 'Severity' ? (
                           <span
                             className={`
-                                  inline-flex
-                                  px-3
-                                  py-1
-                                  rounded-full
-                                  text-sm
-                                  font-semibold
+                                    inline-flex
+                                    px-3
+                                    py-1
+                                    rounded-full
+                                    text-sm
+                                    font-semibold
 
-                                  ${
-                                    content.toLowerCase().includes('critical')
-                                      ? 'bg-red-100 text-red-700'
-                                      : content.toLowerCase().includes('high')
-                                        ? 'bg-orange-100 text-orange-700'
-                                        : content
-                                              .toLowerCase()
-                                              .includes('medium')
-                                          ? 'bg-yellow-100 text-yellow-700'
-                                          : 'bg-green-100 text-green-700'
-                                  }
-                                `}
+                                    ${
+                                      content.toLowerCase().includes('critical')
+                                        ? 'bg-red-100 text-red-700'
+                                        : content.toLowerCase().includes('high')
+                                          ? 'bg-orange-100 text-orange-700'
+                                          : content
+                                                .toLowerCase()
+                                                .includes('medium')
+                                            ? 'bg-yellow-100 text-yellow-700'
+                                            : 'bg-green-100 text-green-700'
+                                    }
+                                  `}
                           >
                             {content}
                           </span>
@@ -989,46 +1003,46 @@ export default function Home() {
         </div>
 
         {/* =====================================
-              REPORT HISTORY
-          ===================================== */}
+                REPORT HISTORY
+            ===================================== */}
 
         <section
           className="
-              mt-8
-              bg-white
-              rounded-2xl
-              shadow-sm
-              border
-              p-6
-            "
+                mt-8
+                bg-white
+                rounded-2xl
+                shadow-sm
+                border
+                p-6
+              "
         >
           {/* HISTORY HEADER */}
 
           <div
             className="
-                flex
-                items-center
-                justify-between
-                mb-6
-              "
+                  flex
+                  items-center
+                  justify-between
+                  mb-6
+                "
           >
             <div>
               <h2
                 className="
-                    text-xl
-                    font-semibold
-                    text-slate-900
-                  "
+                      text-xl
+                      font-semibold
+                      text-slate-900
+                    "
               >
                 Report History
               </h2>
 
               <p
                 className="
-                    text-sm
-                    text-slate-500
-                    mt-1
-                  "
+                      text-sm
+                      text-slate-500
+                      mt-1
+                    "
               >
                 Previously generated defect reports
               </p>
@@ -1047,18 +1061,18 @@ export default function Home() {
                 onClick={clearAllReports}
                 disabled={!isMounted || history.length === 0}
                 className="
-        px-3
-        py-1.5
-        text-sm
-        font-medium
-        text-red-600
-        border
-        border-red-200
-        rounded-lg
-        hover:bg-red-50
-        disabled:opacity-40
-        disabled:cursor-not-allowed
-      "
+          px-3
+          py-1.5
+          text-sm
+          font-medium
+          text-red-600
+          border
+          border-red-200
+          rounded-lg
+          hover:bg-red-50
+          disabled:opacity-40
+          disabled:cursor-not-allowed
+        "
               >
                 Clear All
               </button>
@@ -1066,8 +1080,8 @@ export default function Home() {
           </div>
 
           {/* =====================================
-                SEARCH HISTORY
-            ===================================== */}
+                  SEARCH HISTORY
+              ===================================== */}
 
           <div className="mb-5">
             <input
@@ -1076,45 +1090,45 @@ export default function Home() {
               onChange={(e) => setHistorySearch(e.target.value)}
               placeholder="Search reports..."
               className="
-                  w-full
-                  border
-                  border-slate-300
-                  rounded-xl
-                  px-4
-                  py-3
-                  text-sm
-                  outline-none
-                  focus:ring-2
-                  focus:ring-blue-500
-                  focus:border-blue-500
-                "
+                    w-full
+                    border
+                    border-slate-300
+                    rounded-xl
+                    px-4
+                    py-3
+                    text-sm
+                    outline-none
+                    focus:ring-2
+                    focus:ring-blue-500
+                    focus:border-blue-500
+                  "
             />
           </div>
 
           {/* =====================================
-                HISTORY FILTERS
-            ===================================== */}
+                  HISTORY FILTERS
+              ===================================== */}
 
           <div
             className="
-                grid
-                grid-cols-1
-                md:grid-cols-3
-                gap-4
-                mb-4
-              "
+                  grid
+                  grid-cols-1
+                  md:grid-cols-3
+                  gap-4
+                  mb-4
+                "
           >
             {/* SYSTEM FILTER */}
 
             <div>
               <label
                 className="
-                    block
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    mb-2
-                  "
+                      block
+                      text-sm
+                      font-medium
+                      text-slate-700
+                      mb-2
+                    "
               >
                 System
               </label>
@@ -1123,19 +1137,19 @@ export default function Home() {
                 value={systemFilter}
                 onChange={(e) => setSystemFilter(e.target.value)}
                 className="
-                    w-full
-                    border
-                    border-slate-300
-                    rounded-xl
-                    px-4
-                    py-3
-                    text-sm
-                    bg-white
-                    outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                    focus:border-blue-500
-                  "
+                      w-full
+                      border
+                      border-slate-300
+                      rounded-xl
+                      px-4
+                      py-3
+                      text-sm
+                      bg-white
+                      outline-none
+                      focus:ring-2
+                      focus:ring-blue-500
+                      focus:border-blue-500
+                    "
               >
                 <option value="All">All Systems</option>
 
@@ -1156,12 +1170,12 @@ export default function Home() {
             <div>
               <label
                 className="
-                    block
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    mb-2
-                  "
+                      block
+                      text-sm
+                      font-medium
+                      text-slate-700
+                      mb-2
+                    "
               >
                 Environment
               </label>
@@ -1170,19 +1184,19 @@ export default function Home() {
                 value={environmentFilter}
                 onChange={(e) => setEnvironmentFilter(e.target.value)}
                 className="
-                    w-full
-                    border
-                    border-slate-300
-                    rounded-xl
-                    px-4
-                    py-3
-                    text-sm
-                    bg-white
-                    outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                    focus:border-blue-500
-                  "
+                      w-full
+                      border
+                      border-slate-300
+                      rounded-xl
+                      px-4
+                      py-3
+                      text-sm
+                      bg-white
+                      outline-none
+                      focus:ring-2
+                      focus:ring-blue-500
+                      focus:border-blue-500
+                    "
               >
                 <option value="All">All Environments</option>
 
@@ -1201,12 +1215,12 @@ export default function Home() {
             <div>
               <label
                 className="
-                    block
-                    text-sm
-                    font-medium
-                    text-slate-700
-                    mb-2
-                  "
+                      block
+                      text-sm
+                      font-medium
+                      text-slate-700
+                      mb-2
+                    "
               >
                 Severity
               </label>
@@ -1215,19 +1229,19 @@ export default function Home() {
                 value={severityFilter}
                 onChange={(e) => setSeverityFilter(e.target.value)}
                 className="
-                    w-full
-                    border
-                    border-slate-300
-                    rounded-xl
-                    px-4
-                    py-3
-                    text-sm
-                    bg-white
-                    outline-none
-                    focus:ring-2
-                    focus:ring-blue-500
-                    focus:border-blue-500
-                  "
+                      w-full
+                      border
+                      border-slate-300
+                      rounded-xl
+                      px-4
+                      py-3
+                      text-sm
+                      bg-white
+                      outline-none
+                      focus:ring-2
+                      focus:ring-blue-500
+                      focus:border-blue-500
+                    "
               >
                 <option value="All">All Severities</option>
 
@@ -1243,15 +1257,15 @@ export default function Home() {
           </div>
 
           {/* =====================================
-                CLEAR FILTERS
-            ===================================== */}
+                  CLEAR FILTERS
+              ===================================== */}
 
           <div
             className="
-                flex
-                justify-end
-                mb-6
-              "
+                  flex
+                  justify-end
+                  mb-6
+                "
           >
             <button
               onClick={clearHistoryFilters}
@@ -1262,51 +1276,51 @@ export default function Home() {
                 severityFilter === 'All'
               }
               className="
-                  px-4
-                  py-2
-                  text-sm
-                  font-medium
-                  text-slate-600
-                  border
-                  border-slate-300
-                  rounded-xl
-                  hover:bg-slate-50
-                  disabled:opacity-40
-                  disabled:cursor-not-allowed
-                "
+                    px-4
+                    py-2
+                    text-sm
+                    font-medium
+                    text-slate-600
+                    border
+                    border-slate-300
+                    rounded-xl
+                    hover:bg-slate-50
+                    disabled:opacity-40
+                    disabled:cursor-not-allowed
+                  "
             >
               Clear Filters
             </button>
           </div>
 
           {/* =====================================
-                EMPTY HISTORY
-            ===================================== */}
+                  EMPTY HISTORY
+              ===================================== */}
 
           {!isMounted ? (
             <div
               className="
-                  text-center
-                  py-10
-                  text-slate-500
-                "
+                    text-center
+                    py-10
+                    text-slate-500
+                  "
             >
               Loading reports...
             </div>
           ) : history.length === 0 ? (
             <div
               className="
-                  text-center
-                  py-10
-                  text-slate-500
-                "
+                    text-center
+                    py-10
+                    text-slate-500
+                  "
             >
               No reports in history yet.
               <p
                 className="
-                    text-sm
-                    mt-1
-                  "
+                      text-sm
+                      mt-1
+                    "
               >
                 Generate a defect report to see it here.
               </p>
@@ -1314,84 +1328,84 @@ export default function Home() {
           ) : filteredHistory.length === 0 ? (
             <div
               className="
-                  text-center
-                  py-10
-                  text-slate-500
-                "
+                    text-center
+                    py-10
+                    text-slate-500
+                  "
             >
               <p>No reports found matching your filters.</p>
 
               <button
                 onClick={clearHistoryFilters}
                 className="
-                    mt-3
-                    text-sm
-                    text-blue-600
-                    hover:text-blue-700
-                    font-medium
-                  "
+                      mt-3
+                      text-sm
+                      text-blue-600
+                      hover:text-blue-700
+                      font-medium
+                    "
               >
                 Clear Filters
               </button>
             </div>
           ) : (
             /* =====================================
-                  REPORT LIST
-              ===================================== */
+                    REPORT LIST
+                ===================================== */
 
             <div
               className="
-                  space-y-3
-                "
+                    space-y-3
+                  "
             >
               {filteredHistory.map((historyReport) => (
                 <div
                   key={historyReport.id}
                   className="
-                        border
-                        rounded-xl
-                        p-4
-                        hover:bg-slate-50
-                        transition
-                      "
+                          border
+                          rounded-xl
+                          p-4
+                          hover:bg-slate-50
+                          transition
+                        "
                 >
                   <div
                     className="
-                          flex
-                          flex-col
-                          md:flex-row
-                          md:items-center
-                          md:justify-between
-                          gap-4
-                        "
+                            flex
+                            flex-col
+                            md:flex-row
+                            md:items-center
+                            md:justify-between
+                            gap-4
+                          "
                   >
                     {/* REPORT INFORMATION */}
 
                     <div
                       className="
-                            min-w-0
-                          "
+                              min-w-0
+                            "
                     >
                       <h3
                         className="
-                              font-semibold
-                              text-slate-900
-                              truncate
-                            "
+                                font-semibold
+                                text-slate-900
+                                truncate
+                              "
                       >
                         {historyReport.issueTitle}
                       </h3>
 
                       <div
                         className="
-                              flex
-                              flex-wrap
-                              items-center
-                              gap-2
-                              mt-2
-                              text-sm
-                              text-slate-500
-                            "
+                                flex
+                                flex-wrap
+                                items-center
+                                gap-2
+                                mt-2
+                                text-sm
+                                text-slate-500
+                              "
                       >
                         <span>{historyReport.system}</span>
 
@@ -1411,36 +1425,36 @@ export default function Home() {
 
                     <div
                       className="
-                            flex
-                            items-center
-                            gap-3
-                          "
+                              flex
+                              items-center
+                              gap-3
+                            "
                     >
                       <span
                         className={`
-                              inline-flex
-                              px-3
-                              py-1
-                              rounded-full
-                              text-xs
-                              font-semibold
+                                inline-flex
+                                px-3
+                                py-1
+                                rounded-full
+                                text-xs
+                                font-semibold
 
-                              ${
-                                historyReport.severity
-                                  .toLowerCase()
-                                  .includes('critical')
-                                  ? 'bg-red-100 text-red-700'
-                                  : historyReport.severity
-                                        .toLowerCase()
-                                        .includes('high')
-                                    ? 'bg-orange-100 text-orange-700'
+                                ${
+                                  historyReport.severity
+                                    .toLowerCase()
+                                    .includes('critical')
+                                    ? 'bg-red-100 text-red-700'
                                     : historyReport.severity
                                           .toLowerCase()
-                                          .includes('medium')
-                                      ? 'bg-yellow-100 text-yellow-700'
-                                      : 'bg-green-100 text-green-700'
-                              }
-                            `}
+                                          .includes('high')
+                                      ? 'bg-orange-100 text-orange-700'
+                                      : historyReport.severity
+                                            .toLowerCase()
+                                            .includes('medium')
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-green-100 text-green-700'
+                                }
+                              `}
                       >
                         {historyReport.severity}
                       </span>
@@ -1450,16 +1464,16 @@ export default function Home() {
                       <button
                         onClick={() => openHistoryReport(historyReport)}
                         className="
-                              px-3
-                              py-1.5
-                              text-sm
-                              font-medium
-                              text-blue-600
-                              border
-                              border-blue-200
-                              rounded-lg
-                              hover:bg-blue-50
-                            "
+                                px-3
+                                py-1.5
+                                text-sm
+                                font-medium
+                                text-blue-600
+                                border
+                                border-blue-200
+                                rounded-lg
+                                hover:bg-blue-50
+                              "
                       >
                         Open
                       </button>
