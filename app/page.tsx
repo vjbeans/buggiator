@@ -140,7 +140,7 @@ export default function Home() {
       /^the application is broken\s+\d+$/,
       /^the app is broken\s+\d+$/,
       /^the system is broken\s+\d+$/,
-      /^the page is broken\s+\d+$/,
+      /^the page is broken\s+\d+$/, 
       /^the map is broken\s+\d+$/,
     ];
 
